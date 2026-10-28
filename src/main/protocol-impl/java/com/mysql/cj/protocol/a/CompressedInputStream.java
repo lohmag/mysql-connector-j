@@ -144,13 +144,7 @@ public class CompressedInputStream extends InputStream {
         }
 
         int remaining = this.buffer == null ? 0 : this.bufferLength - this.pos;
-        if (doTrace && remaining > 0) {
-            this.log.logTrace("Combining remaining packet with new: ");
-        }
-        byte[] target = ensureCapacity(this.buffer, remaining + uncompressedLength);
-        if (remaining > 0) {
-            System.arraycopy(this.buffer, this.pos, target, 0, remaining);
-        }
+        byte[] target = carryOverUnreadBytes(remaining, remaining + uncompressedLength, doTrace);
 
         if (compressed) {
             this.compressedBuffer = ensureCapacity(this.compressedBuffer, compressedPacketLength);
@@ -177,6 +171,28 @@ public class CompressedInputStream extends InputStream {
         this.bufferLength = remaining + uncompressedLength;
 
         return;
+    }
+
+    /**
+     * Returns an array of at least {@code capacity} bytes that starts with the unread bytes of {@link #buffer}.
+     *
+     * @param remaining
+     *            number of unread bytes in {@link #buffer}
+     * @param capacity
+     *            the number of bytes needed
+     * @param doTrace
+     *            whether to trace the protocol
+     * @return the array to read the next packet into, after the unread bytes
+     */
+    private byte[] carryOverUnreadBytes(int remaining, int capacity, boolean doTrace) {
+        byte[] target = ensureCapacity(this.buffer, capacity);
+        if (remaining > 0) {
+            if (doTrace) {
+                this.log.logTrace("Combining remaining packet with new: ");
+            }
+            System.arraycopy(this.buffer, this.pos, target, 0, remaining);
+        }
+        return target;
     }
 
     /**
