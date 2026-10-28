@@ -36,13 +36,10 @@ class ZstdPacketCompressor {
     private final int level;
     private ByteBuffer target;
     private boolean overflow;
-    /** Whether the context holds a frame that was not finished. */
-    private boolean frameOpen;
 
     ZstdPacketCompressor(int level) {
         this.level = level;
         this.context = new ZstdCompressCtx();
-        this.context.setLevel(level);
     }
 
     /**
@@ -52,13 +49,10 @@ class ZstdPacketCompressor {
      *            the buffer for the compressed packet
      */
     void start(byte[] buffer) {
-        if (this.frameOpen) {
-            this.context.reset();
-            this.context.setLevel(this.level);
-        }
+        this.context.reset();
+        this.context.setLevel(this.level);
         this.target = ByteBuffer.wrap(buffer);
         this.overflow = false;
-        this.frameOpen = true;
     }
 
     /**
@@ -91,7 +85,6 @@ class ZstdPacketCompressor {
         if (this.overflow) {
             return this.target.capacity();
         }
-        this.frameOpen = false;
         return this.target.position();
     }
 
