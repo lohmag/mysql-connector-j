@@ -1422,7 +1422,7 @@ public class ConnectionTest extends BaseTestCase {
         }
         String value = data.toString();
 
-        for (String[] algorithmsAndLevel : new String[][] { { "zstd", "3", "zstd" }, { "zstd,zlib", "19", "zstd" }, { "zlib,zstd", "3", "zlib" },
+        for (String[] algorithmsAndLevel : new String[][] { { "zstd", "3", "zstd" }, { "zstd , zlib", "19", "zstd" }, { "zlib,zstd", "3", "zlib" },
                 { "zlib", "3", "zlib" } }) {
             Properties props = new Properties();
             props.setProperty(PropertyKey.sslMode.getKeyName(), SslMode.DISABLED.name());
