@@ -88,8 +88,6 @@ public class CompressedPacketSender implements MessageSender<NativePacketPayload
         this.compressedPayloadLen = 0;
         if (this.zstd == null) {
             this.deflater.reset();
-        } else {
-            this.zstdFrameStarted = false;
         }
     }
 
