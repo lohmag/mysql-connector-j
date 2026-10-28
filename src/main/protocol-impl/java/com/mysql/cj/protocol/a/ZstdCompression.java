@@ -36,7 +36,6 @@ public final class ZstdCompression {
         private static boolean check() {
             try {
                 Class.forName("com.github.luben.zstd.ZstdCompressCtx", true, ZstdCompression.class.getClassLoader());
-                Class.forName("com.github.luben.zstd.ZstdDecompressCtx", true, ZstdCompression.class.getClassLoader());
                 return true;
             } catch (ClassNotFoundException | LinkageError e) {
                 return false;
