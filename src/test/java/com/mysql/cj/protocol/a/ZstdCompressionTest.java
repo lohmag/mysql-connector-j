@@ -113,7 +113,7 @@ public class ZstdCompressionTest {
     @Test
     public void packetsRoundTrip() throws Exception {
         for (int len : new int[] { 0, 1, 49, 50, 1000, 65536, NativeConstants.MAX_PACKET_SIZE - 4, NativeConstants.MAX_PACKET_SIZE,
-                NativeConstants.MAX_PACKET_SIZE + 1000 }) {
+                NativeConstants.MAX_PACKET_SIZE + 1000, 2 * NativeConstants.MAX_PACKET_SIZE }) {
             byte[] packet = packet(len, len);
             byte[] wire = send(packet, 3);
             assertArrayEquals(receive(send(packet, 0), false), receive(wire, true), "packet of " + len + " bytes");
