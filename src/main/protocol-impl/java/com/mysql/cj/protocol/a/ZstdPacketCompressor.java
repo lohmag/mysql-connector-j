@@ -75,7 +75,7 @@ class ZstdPacketCompressor {
         ByteBuffer source = ByteBuffer.wrap(data, offset, len);
         while (!this.overflow && source.hasRemaining()) {
             this.context.compressByteBufferStream(this.target, source, EndDirective.CONTINUE);
-            this.overflow = source.hasRemaining() && !this.target.hasRemaining();
+            this.overflow = !this.target.hasRemaining();
         }
     }
 
