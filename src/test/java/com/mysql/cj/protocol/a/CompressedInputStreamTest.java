@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 
 import com.mysql.cj.conf.DefaultPropertySet;
 import com.mysql.cj.conf.PropertyKey;
+import com.mysql.cj.conf.RuntimeProperty;
 import com.mysql.cj.log.NullLogger;
 
 public class CompressedInputStreamTest {
@@ -49,8 +50,21 @@ public class CompressedInputStreamTest {
     }
 
     private static CompressedInputStream stream(byte[] wire) {
-        return new CompressedInputStream(new ByteArrayInputStream(wire), new DefaultPropertySet().getBooleanProperty(PropertyKey.traceProtocol),
-                new NullLogger(null));
+        return stream(wire, false);
+    }
+
+    private static CompressedInputStream stream(byte[] wire, boolean traceProtocol) {
+        RuntimeProperty<Boolean> trace = new DefaultPropertySet().getBooleanProperty(PropertyKey.traceProtocol);
+        trace.setValue(traceProtocol);
+        return new CompressedInputStream(new ByteArrayInputStream(wire), trace, new NullLogger(null));
+    }
+
+    private static byte[] concat(byte[]... parts) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        for (byte[] part : parts) {
+            out.write(part, 0, part.length);
+        }
+        return out.toByteArray();
     }
 
     private static byte[] read(CompressedInputStream in, int length, int chunk) throws IOException {
@@ -122,6 +136,33 @@ public class CompressedInputStreamTest {
     public void packetThatInflatesToMoreBytesIsRejected() throws IOException {
         byte[] payload = packet(3000, 3);
         assertEquals(-1, stream(compressedPacket(payload, payload.length - 1)).read(new byte[8192]));
+    }
+
+    @Test
+    public void packetCompressedFromOneByteIsRead() throws IOException {
+        assertEquals(0x5A, stream(compressedPacket(new byte[] { 0x5A }, 1)).read());
+    }
+
+    @Test
+    public void readsThatLeaveOneByteOfAPacketKeepTheBytesInOrder() throws IOException {
+        byte[] first = packet(600, 4);
+        byte[] second = packet(600, 5);
+        byte[] wire = concat(compressedPacket(first, first.length), compressedPacket(second, second.length));
+        assertArrayEquals(concat(first, second), read(stream(wire), 1200, 599));
+    }
+
+    @Test
+    public void availableCountsTheUnreadBytesOfThePacketAndOfTheServerStream() throws IOException {
+        byte[] next = compressedPacket(packet(600, 6), 600);
+        CompressedInputStream in = stream(concat(compressedPacket(packet(3000, 7), 3000), next));
+        read(in, 1000, 1000);
+        assertEquals(2000 + next.length, in.available());
+    }
+
+    @Test
+    public void largePacketIsReadWithProtocolTracing() throws IOException {
+        byte[] payload = packet(3000, 8);
+        assertArrayEquals(payload, read(stream(compressedPacket(payload, payload.length), true), payload.length, 8192));
     }
 
 }
