@@ -43,6 +43,8 @@ import java.lang.reflect.Method;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -1455,6 +1457,33 @@ public class ConnectionTest extends BaseTestCase {
         props.setProperty(PropertyKey.useCompression.getKeyName(), "true");
         props.setProperty(PropertyKey.compressionAlgorithms.getKeyName(), "lz4");
         assertThrows(SQLException.class, ".*lz4.*", () -> getConnectionWithProps(props));
+    }
+
+    /**
+     * Tests that zstd is skipped in 'compressionAlgorithms' when zstd-jni is not in the class path.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testZstdCompressionWithoutZstdJni() throws Exception {
+        assumeTrue(versionMeetsMinimum(8, 0, 18), "MySQL 8.0.18+ is required to run this test.");
+        this.rs = this.stmt.executeQuery("SELECT @@protocol_compression_algorithms");
+        assumeTrue(this.rs.next() && this.rs.getString(1).toLowerCase().contains("zstd"), "This test requires a server that accepts zstd compression.");
+
+        URL driverClasses = NonRegisteringDriver.class.getProtectionDomain().getCodeSource().getLocation();
+        try (URLClassLoader withoutZstdJni = new URLClassLoader(new URL[] { driverClasses }, null)) {
+            java.sql.Driver driver = (java.sql.Driver) withoutZstdJni.loadClass(NonRegisteringDriver.class.getName()).newInstance();
+            Properties props = getPropertiesFromTestsuiteUrl();
+            props.setProperty(PropertyKey.sslMode.getKeyName(), SslMode.DISABLED.name());
+            props.setProperty(PropertyKey.allowPublicKeyRetrieval.getKeyName(), "true");
+            props.setProperty(PropertyKey.useCompression.getKeyName(), "true");
+            props.setProperty(PropertyKey.compressionAlgorithms.getKeyName(), "zstd,zlib");
+            try (Connection testConn = driver.connect(dbUrl, props); Statement testStmt = testConn.createStatement()) {
+                ResultSet testRs = testStmt.executeQuery("SHOW SESSION STATUS LIKE 'Compression_algorithm'");
+                assertTrue(testRs.next());
+                assertEquals("zlib", testRs.getString(2));
+            }
+        }
     }
 
     @Test
