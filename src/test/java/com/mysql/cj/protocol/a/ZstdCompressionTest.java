@@ -22,6 +22,7 @@ package com.mysql.cj.protocol.a;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -29,6 +30,8 @@ import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.Random;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -170,6 +173,33 @@ public class ZstdCompressionTest {
     public void levelIsApplied() throws Exception {
         byte[] packet = packet(65536, 4);
         assertNotEquals(send(packet, 1).length, send(packet, 19).length);
+    }
+
+    /**
+     * zstd is not available without zstd-jni, nor with zstd-jni but without its native library.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void unavailableWithoutZstdJniOrItsNativeLibrary() throws Exception {
+        URL driver = ZstdCompression.class.getProtectionDomain().getCodeSource().getLocation();
+        URL zstdJni = Zstd.class.getProtectionDomain().getCodeSource().getLocation();
+        try (URLClassLoader withoutZstdJni = new URLClassLoader(new URL[] { driver }, null);
+                URLClassLoader withoutNativeLibrary = new URLClassLoader(new URL[] { driver, zstdJni }, null) {
+
+                    @Override
+                    public URL findResource(String name) {
+                        return name.contains("zstd-jni") ? null : super.findResource(name);
+                    }
+
+                }) {
+            assertFalse(isAvailable(withoutZstdJni));
+            assertFalse(isAvailable(withoutNativeLibrary));
+        }
+    }
+
+    private static boolean isAvailable(ClassLoader classLoader) throws Exception {
+        return (Boolean) classLoader.loadClass(ZstdCompression.class.getName()).getMethod("isAvailable").invoke(null);
     }
 
 }
