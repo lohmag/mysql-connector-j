@@ -99,7 +99,6 @@ public class CompressedInputStream extends InputStream {
     public void close() throws IOException {
         this.in.close();
         this.buffer = null;
-        this.bufferLength = 0;
         this.compressedBuffer = null;
         this.inflater.end();
         this.inflater = null;
@@ -198,18 +197,9 @@ public class CompressedInputStream extends InputStream {
         this.inflater.reset();
         this.inflater.setInput(this.compressedBuffer, 0, compressedLength);
 
-        int inflated = 0;
+        int inflated;
         try {
-            while (inflated < uncompressedLength && !this.inflater.finished()) {
-                int count = this.inflater.inflate(target, offset + inflated, uncompressedLength - inflated);
-                if (count == 0 && (this.inflater.needsInput() || this.inflater.needsDictionary())) {
-                    break;
-                }
-                inflated += count;
-            }
-            if (inflated == uncompressedLength && !this.inflater.finished() && this.inflater.inflate(this.packetHeaderBuffer, 0, 1) > 0) {
-                inflated++;
-            }
+            inflated = this.inflater.inflate(target, offset, uncompressedLength);
         } catch (DataFormatException dfe) {
             throw new IOException("Error while uncompressing packet from server.", dfe);
         }
